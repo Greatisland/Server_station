@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MIG Station — 서버 상태</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>"
+    />
+    <!-- Pretendard (온라인이면 로드, 오프라인이면 맑은 고딕으로 자연 대체) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+    />
+    <style>
+      /* ============ NEO-BRUTALISM ============
+     플랫 비비드 컬러 · 두꺼운 검정 테두리 · 하드 오프셋 그림자 · 큼직한 타이포 */
+      /* 디스플레이 폰트: Paperlogy (오프라인이면 Pretendard/맑은 고딕으로 대체) */
+      @font-face {
+        font-family: "Paperlogy";
+        font-weight: 800;
+        font-style: normal;
+        font-display: swap;
+        src: url("https://fastly.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-8ExtraBold.woff2")
+          format("woff2");
+      }
+      @font-face {
+        font-family: "Paperlogy";
+        font-weight: 900;
+        font-style: normal;
+        font-display: swap;
+        src: url("https://fastly.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-9Black.woff2")
+          format("woff2");
+      }
+      :root {
+        --paper: #f6eedd;
+        --dot: #e3d5bc;
+        --ink: #111111;
+        --card: #fffdf7;
+        --green: #8ce97f;
+        --green-deep: #2fc24f;
+        --red: #ff9c94;
+        --red-deep: #f4442e;
+        --yellow: #ffde59;
+        --amber: #ffc533;
+        --pink: #ffa6d6;
+        --purple: #c4a5ff;
+        --blue: #8fd3ff;
+        --neutral: #efe6d2;
+        --bd: 3px solid var(--ink);
+        --bd2: 2.5px solid var(--ink);
+        --mono: "Cascadia Mono", Consolas, "Courier New", monospace;
+        --display: "Paperlogy", "Pretendard Variable", Pretendard,
+          "Malgun Gothic", "맑은 고딕", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        background: var(--paper);
+        background-image: radial-gradient(var(--dot) 1.4px, transparent 1.4px);
+        background-size: 24px 24px;
+        color: var(--ink);
+        font-family: "Pretendard Variable", Pretendard, "Malgun Gothic",
+          "맑은 고딕", "Apple SD Gothic Neo", system-ui, sans-serif;
+        font-size: 15px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: 860px;
+        margin: 0 auto;
+        padding: 34px 22px 100px;
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      .stat b,
+      .statusword,
+      .onair,
+      .eyebrow,
+      .logtab {
+        font-family: var(--display);
+      }
+
+      /* ---------- 헤더 ---------- */
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 26px;
+      }
+      .eyebrow {
+        display: inline-block;
+        font-size: 11.5px;
+        font-weight: 800;
+        letter-spacing: 0.22em;
+        padding: 7px 14px;
+        background: #fff;
+        border: var(--bd2);
+        border-radius: 999px;
+        box-shadow: 3px 3px 0 var(--ink);
+        transform: rotate(-1deg);
+      }
+      h1 {
+        font-size: 46px;
+        font-weight: 900;
+        letter-spacing: -0.015em;
+        margin-top: 14px;
+        line-height: 1.05;
+      }
+      .tagline {
+        margin-top: 9px;
+        font-size: 14px;
+        font-weight: 700;
+        color: #4a4132;
+      }
+      h1 .star {
+        display: inline-block;
+        color: var(--amber);
+        -webkit-text-stroke: 2px var(--ink);
+        font-size: 34px;
+        vertical-align: top;
+        margin-left: 6px;
+        transform: rotate(8deg);
+      }
+      .hud {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 10px;
+      }
+      .clock {
+        font-size: 26px;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.01em;
+        padding: 10px 20px;
+        background: #fff;
+        border: var(--bd);
+        border-radius: 14px;
+        box-shadow: 5px 5px 0 var(--ink);
+      }
+      .wd-state {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12.5px;
+        font-weight: 800;
+        padding: 6px 13px;
+        background: #fff;
+        border: var(--bd2);
+        border-radius: 999px;
+        box-shadow: 3px 3px 0 var(--ink);
+      }
+      .wd-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        border: 2px solid var(--ink);
+        background: #bbb;
+      }
+      .wd-dot.ok {
+        background: var(--green-deep);
+      }
+      .wd-dot.bad {
+        background: var(--red-deep);
+      }
+
+      /* ---------- 요약 스탯 ---------- */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-bottom: 22px;
+      }
+      .stat {
+        padding: 16px 20px;
+        border: var(--bd);
+        border-radius: 18px;
+        box-shadow: 6px 6px 0 var(--ink);
+      }
+      .stat:nth-child(1) {
+        background: var(--blue);
+        transform: rotate(-0.5deg);
+      }
+      .stat:nth-child(2) {
+        background: var(--green);
+        transform: rotate(0.4deg);
+      }
+      .stat:nth-child(3) {
+        background: var(--pink);
+        transform: rotate(-0.3deg);
+      }
+      .stat b {
+        display: block;
+        font-size: 32px;
+        font-weight: 900;
+        line-height: 1.1;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat span {
+        font-size: 12.5px;
+        font-weight: 800;
+      }
+      .stat.warn.hot {
+        background: var(--red-deep);
+        color: #fff;
+      }
+
+      /* ---------- 연결 끊김 배너 ---------- */
+      #offline {
+        display: none;
+        margin-bottom: 18px;
+        padding: 16px 20px;
+        background: var(--red-deep);
+        color: #fff;
+        border: var(--bd);
+        border-radius: 16px;
+        box-shadow: 6px 6px 0 var(--ink);
+        font-weight: 900;
+        font-size: 16px;
+      }
+      #offline small {
+        display: block;
+        font-weight: 600;
+        margin-top: 3px;
+        font-size: 12.5px;
+      }
+      #offline code {
+        font-family: var(--mono);
+        background: #111;
+        color: #ffde59;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 11.5px;
+      }
+      body.offline #offline {
+        display: block;
+      }
+      body.offline .card,
+      body.offline .stats {
+        opacity: 0.45;
+        filter: saturate(0.3);
+      }
+
+      /* ---------- 서버 카드: 카드 색 = 서버 상태 ---------- */
+      .card {
+        position: relative;
+        display: flex;
+        gap: 24px;
+        align-items: center;
+        padding: 26px 28px;
+        margin-bottom: 18px;
+        border: var(--bd);
+        border-radius: 22px;
+        box-shadow: 8px 8px 0 var(--ink);
+        transition: transform 0.12s, box-shadow 0.12s, background 0.3s;
+      }
+      .card:hover {
+        transform: translate(-2px, -2px);
+        box-shadow: 10px 10px 0 var(--ink);
+      }
+      .card.c-g {
+        background: var(--green);
+      }
+      .card.c-r {
+        background: var(--red);
+      }
+      .card.c-a {
+        background: var(--yellow);
+      }
+      .card.c-x {
+        background: var(--neutral);
+      }
+
+      .lampcol {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        min-width: 96px;
+      }
+      .lamp {
+        position: relative;
+        width: 66px;
+        height: 66px;
+        border-radius: 50%;
+        border: var(--bd);
+        background: #cfc4ae;
+      }
+      .lamp::after {
+        content: "";
+        position: absolute;
+        top: 9px;
+        left: 12px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.75);
+      }
+      .lamp.g {
+        background: var(--green-deep);
+      }
+      .lamp.r {
+        background: var(--red-deep);
+      }
+      .lamp.a {
+        background: var(--amber);
+        animation: hardblink 0.9s steps(2, end) infinite;
+      }
+      .lamp.blink {
+        animation: hardblink 0.8s steps(2, end) infinite;
+      }
+      @keyframes hardblink {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.35;
+        }
+      }
+      .statusword {
+        font-weight: 900;
+        font-size: 15px;
+        letter-spacing: -0.01em;
+        text-align: center;
+      }
+
+      .info {
+        flex: 1;
+        min-width: 0;
+      }
+      .titleline {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .titleline h2 {
+        font-size: 26px;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+      }
+      .onair {
+        display: none;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.3em;
+        color: #7cff9b;
+        background: var(--ink);
+        padding: 7px 14px 7px 17px;
+        border-radius: 8px;
+        box-shadow: 3px 3px 0 rgba(17, 17, 17, 0.35);
+        transform: rotate(-2deg);
+      }
+      .onair.show {
+        display: inline-block;
+      }
+      .chips {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        height: 30px;
+        padding: 0 14px;
+        border-radius: 999px;
+        background: #fff;
+        border: var(--bd2);
+        font-size: 12.5px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+      .errline {
+        display: none;
+        margin-top: 12px;
+        padding: 10px 14px;
+        background: #fff;
+        border: var(--bd2);
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        word-break: break-all;
+        box-shadow: 4px 4px 0 var(--ink);
+      }
+      .errline.show {
+        display: block;
+      }
+      .btns {
+        display: flex;
+        gap: 12px;
+        margin-top: 18px;
+        flex-wrap: wrap;
+      }
+
+      /* ---------- 버튼: 꾹 눌리는 하드 섀도우 ---------- */
+      .btn {
+        height: 48px;
+        padding: 0 22px;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 15.5px;
+        font-family: var(--display);
+        border: var(--bd);
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+        box-shadow: 4px 4px 0 var(--ink);
+        transition: transform 0.08s, box-shadow 0.08s;
+      }
+      .btn:hover:not(:disabled) {
+        transform: translate(-2px, -2px);
+        box-shadow: 6px 6px 0 var(--ink);
+      }
+      .btn:active:not(:disabled) {
+        transform: translate(4px, 4px);
+        box-shadow: 0 0 0 var(--ink);
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+        box-shadow: 2px 2px 0 var(--ink);
+      }
+      .btn.start {
+        background: var(--green-deep);
+        color: #fff;
+      }
+      .btn.stop {
+        background: #fff;
+        color: var(--red-deep);
+      }
+      .btn.danger {
+        background: var(--red-deep);
+        color: #fff;
+      }
+      .btn.ghost {
+        background: var(--paper);
+      }
+      .btn.sm {
+        height: 38px;
+        padding: 0 15px;
+        font-size: 13px;
+        box-shadow: 3px 3px 0 var(--ink);
+      }
+
+      #empty {
+        display: none;
+        border: 3px dashed var(--ink);
+        border-radius: 22px;
+        background: #fff;
+        padding: 46px 20px;
+        text-align: center;
+        font-weight: 700;
+      }
+      #empty.show {
+        display: block;
+      }
+
+      .tools {
+        display: flex;
+        gap: 14px;
+        margin-top: 30px;
+        justify-content: center;
+      }
+
+      /* ---------- 로그 시트 ---------- */
+      #logdrawer {
+        position: fixed;
+        left: 50%;
+        bottom: 0;
+        transform: translate(-50%, 110%);
+        z-index: 40;
+        width: min(860px, 100vw);
+        max-height: 62vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--card);
+        border: var(--bd);
+        border-bottom: none;
+        border-radius: 22px 22px 0 0;
+        box-shadow: 0 -8px 0 rgba(17, 17, 17, 0.15);
+        transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
+      }
+      #logdrawer.open {
+        transform: translate(-50%, 0);
+      }
+      .loghead {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 18px 22px 10px;
+      }
+      .loghead::before {
+        content: "";
+        position: absolute;
+        top: 9px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 52px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--ink);
+      }
+      .loghead b {
+        font-size: 16px;
+        font-weight: 900;
+      }
+      .logtabs {
+        display: flex;
+        gap: 8px;
+        margin-left: 8px;
+      }
+      .logtab {
+        font-size: 12.5px;
+        font-weight: 800;
+        padding: 7px 15px;
+        border-radius: 999px;
+        border: var(--bd2);
+        background: #fff;
+        cursor: pointer;
+        font-family: inherit;
+        box-shadow: 2px 2px 0 var(--ink);
+      }
+      .logtab.on {
+        background: var(--yellow);
+      }
+      .loghead .close {
+        margin-left: auto;
+      }
+      #logbody {
+        overflow: auto;
+        margin: 8px 22px 20px;
+        padding: 14px 16px;
+        min-height: 180px;
+        background: var(--ink);
+        color: #9ae24c;
+        border: var(--bd);
+        border-radius: 14px;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      /* ---------- 설정 시트 ---------- */
+      #setwrap {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: none;
+      }
+      #setwrap.open {
+        display: block;
+      }
+      #setwrap .dim {
+        position: absolute;
+        inset: 0;
+        background: rgba(17, 17, 17, 0.35);
+      }
+      #setpanel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(500px, 100vw);
+        overflow-y: auto;
+        padding: 28px 24px;
+        background: var(--paper);
+        background-image: radial-gradient(var(--dot) 1.4px, transparent 1.4px);
+        background-size: 24px 24px;
+        border-left: var(--bd);
+      }
+      #setpanel h3 {
+        font-size: 24px;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+        margin-bottom: 6px;
+      }
+      #setpanel .desc {
+        font-size: 12.5px;
+        font-weight: 600;
+        margin-bottom: 20px;
+      }
+      .srow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+        background: #fff;
+        border: var(--bd2);
+        border-radius: 14px;
+        box-shadow: 4px 4px 0 var(--ink);
+      }
+      .srow .nm {
+        flex: 1;
+        min-width: 0;
+      }
+      .srow .nm b {
+        font-size: 15.5px;
+        font-weight: 900;
+      }
+      .srow .nm small {
+        display: block;
+        font-family: var(--mono);
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #sform {
+        display: none;
+        margin-top: 18px;
+        padding: 20px;
+        background: #fff;
+        border: var(--bd);
+        border-radius: 18px;
+        box-shadow: 6px 6px 0 var(--ink);
+      }
+      #sform.show {
+        display: block;
+      }
+      #sform h4 {
+        font-size: 17px;
+        font-weight: 900;
+        margin-bottom: 16px;
+      }
+      .field {
+        margin-bottom: 14px;
+      }
+      .field label {
+        display: block;
+        font-size: 12.5px;
+        font-weight: 800;
+        margin-bottom: 6px;
+      }
+      .field input[type="text"],
+      .field input[type="number"] {
+        width: 100%;
+        height: 45px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: var(--bd2);
+        background: #fff;
+        color: var(--ink);
+        font-size: 14px;
+        font-family: var(--mono);
+        font-weight: 600;
+        transition: box-shadow 0.1s, transform 0.1s;
+      }
+      .field input:focus {
+        outline: none;
+        box-shadow: 3px 3px 0 var(--ink);
+        transform: translate(-1px, -1px);
+      }
+      .field .hint {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #6d6250;
+        margin-top: 5px;
+      }
+      .chk {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+        font-size: 14px;
+        font-weight: 800;
+        margin-bottom: 14px;
+        cursor: pointer;
+      }
+      .chk input {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--green-deep);
+      }
+      details.adv {
+        margin: 4px 0 14px;
+      }
+      details.adv summary {
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 800;
+        user-select: none;
+      }
+      details.adv[open] summary {
+        margin-bottom: 12px;
+      }
+      .formbtns {
+        display: flex;
+        gap: 12px;
+        margin-top: 8px;
+      }
+      .wdinfo {
+        margin-top: 24px;
+        padding: 12px 14px;
+        background: #fff;
+        border: var(--bd2);
+        border-radius: 12px;
+        font-family: var(--mono);
+        font-size: 11px;
+        line-height: 1.9;
+        word-break: break-all;
+      }
+
+      /* ---------- 확인 모달 ---------- */
+      #confirm {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+      #confirm.open {
+        display: flex;
+      }
+      #confirm .dim {
+        position: absolute;
+        inset: 0;
+        background: rgba(17, 17, 17, 0.4);
+      }
+      .cbox {
+        position: relative;
+        width: min(420px, calc(100vw - 40px));
+        padding: 26px;
+        background: var(--card);
+        border: var(--bd);
+        border-radius: 20px;
+        box-shadow: 10px 10px 0 var(--ink);
+        animation: pop 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+      }
+      @keyframes pop {
+        from {
+          transform: scale(0.92);
+          opacity: 0;
+        }
+      }
+      .cbox h4 {
+        font-size: 19px;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        margin-bottom: 10px;
+      }
+      .cbox p {
+        font-size: 14px;
+        font-weight: 600;
+        white-space: pre-line;
+      }
+      .cbox .formbtns {
+        margin-top: 22px;
+        justify-content: flex-end;
+      }
+
+      /* ---------- 토스트 ---------- */
+      #toast {
+        position: fixed;
+        top: 22px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-120px);
+        z-index: 70;
+        max-width: calc(100vw - 40px);
+        padding: 13px 24px;
+        border-radius: 14px;
+        background: var(--yellow);
+        border: var(--bd);
+        box-shadow: 5px 5px 0 var(--ink);
+        font-size: 14.5px;
+        font-weight: 900;
+        transition: transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+      }
+      #toast.show {
+        transform: translateX(-50%) translateY(0) rotate(-1deg);
+      }
+      #toast.err {
+        background: var(--red-deep);
+        color: #fff;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .lamp.a,
+        .lamp.blink {
+          animation: none;
+        }
+      }
+      @media (max-width: 600px) {
+        .card {
+          flex-direction: column;
+          align-items: stretch;
+          text-align: center;
+        }
+        .lampcol {
+          align-self: center;
+        }
+        .titleline,
+        .chips,
+        .btns {
+          justify-content: center;
+        }
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .hud {
+          align-items: flex-start;
+        }
+        h1 {
+          font-size: 34px;
+        }
+        .stats {
+          gap: 10px;
+        }
+        .stat b {
+          font-size: 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div>
+          <span class="eyebrow">SIIC DASHBOARD OPS</span>
+          <h1>MIG STATION<span class="star">✳</span></h1>
+          <p class="tagline">아래에서 서버 상태를 관리해주세요.</p>
+        </div>
+        <div class="hud">
+          <div class="clock" id="clock">--:--:--</div>
+          <div class="wd-state">
+            <span class="wd-dot" id="wddot"></span
+            ><span id="wdtext">스테이션 연결 중…</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="stats">
+        <div class="stat"><b id="st-total">-</b><span>전체 서버</span></div>
+        <div class="stat up"><b id="st-up">-</b><span>켜짐</span></div>
+        <div class="stat warn" id="st-warn-tile">
+          <b id="st-warn">-</b><span>주의 필요</span>
+        </div>
+      </div>
+
+      <div id="offline">
+        ⚠ 스테이션이 닫혀 있습니다
+        <small
+          >서버 컴퓨터에서 <code>server-control\스테이션 열기.cmd</code> 를
+          실행하면 다시 열립니다. (서버 자체는 계속 돌고 있을 수 있어요)</small
+        >
+      </div>
+
+      <main id="board"></main>
+      <div id="empty">
+        등록된 서버가 없습니다 — 아래 <b>[서버 설정]</b>에서 추가하세요.
+      </div>
+
+      <div class="tools">
+        <button class="btn ghost" onclick="openSettings()">⚙ 서버 설정</button>
+        <button
+          class="btn ghost"
+          onclick="openLog({kind:'watchdog'},'스테이션')"
+        >
+          스테이션 로그
+        </button>
+      </div>
+    </div>
+
+    <!-- 로그 시트 -->
+    <div id="logdrawer">
+      <div class="loghead">
+        <b id="logtitle">로그</b>
+        <div class="logtabs" id="logtabs"></div>
+        <button class="btn sm ghost close" onclick="closeLog()">닫기 ✕</button>
+      </div>
+      <div id="logbody">불러오는 중…</div>
+    </div>
+
+    <!-- 설정 시트 -->
+    <div id="setwrap">
+      <div class="dim" onclick="closeSettings()"></div>
+      <div id="setpanel">
+        <h3>⚙ 서버 설정</h3>
+        <div class="desc">
+          서버를 추가/수정합니다. 실행 중인 서버의 명령어·포트·폴더를 바꾸려면
+          먼저 서버를 끄세요.
+        </div>
+        <div id="slist"></div>
+        <button class="btn" style="width: 100%" onclick="showForm()">
+          ＋ 서버 추가
+        </button>
+
+        <form id="sform" onsubmit="return saveForm(event)">
+          <h4 id="formtitle">서버 추가</h4>
+          <div class="field">
+            <label>서버 이름</label>
+            <input
+              type="text"
+              id="f-name"
+              maxlength="40"
+              placeholder="예: MigManager"
+              required
+            />
+          </div>
+          <div class="field">
+            <label>실행 폴더</label>
+            <input
+              type="text"
+              id="f-cwd"
+              placeholder="예: D:\Migmanager 또는 .."
+              required
+            />
+            <div class="hint">
+              절대경로 또는 server-control 폴더 기준 상대경로
+            </div>
+          </div>
+          <div class="field">
+            <label>실행 명령어</label>
+            <input
+              type="text"
+              id="f-command"
+              placeholder="예: npm run start"
+              required
+            />
+          </div>
+          <div class="field">
+            <label>포트</label>
+            <input
+              type="number"
+              id="f-port"
+              min="1"
+              max="65535"
+              placeholder="예: 3737"
+              required
+            />
+            <div class="hint">
+              서버가 실제로 여는 포트와 일치해야 상태 감지가 됩니다
+            </div>
+          </div>
+          <div class="field">
+            <label>확인 방식</label>
+            <select id="f-probe">
+              <option value="http">HTTP (웹·워커)</option>
+              <option value="tcp">TCP (Postgres 등 HTTP 없는 포트)</option>
+            </select>
+            <div class="hint">
+              Postgres처럼 웹 응답이 없는 포트는 TCP로 봐야 빨간불이 안 납니다
+            </div>
+          </div>
+          <details class="adv">
+            <summary>고급 (빌드 설정)</summary>
+            <div class="field">
+              <label>빌드 명령어 (선택)</label>
+              <input type="text" id="f-build" placeholder="예: npm run build" />
+              <div class="hint">
+                [업데이트 적용] 버튼이 이 명령을 실행한 뒤 재시작합니다
+              </div>
+            </div>
+            <div class="field">
+              <label>빌드 확인 파일 (선택)</label>
+              <input
+                type="text"
+                id="f-marker"
+                placeholder="예: .next/BUILD_ID"
+              />
+              <div class="hint">
+                이 파일이 없으면 시작 전에 빌드를 먼저 실행합니다 (실행 폴더
+                기준)
+              </div>
+            </div>
+          </details>
+          <div class="formbtns">
+            <button type="submit" class="btn start" style="flex: 1">
+              저장
+            </button>
+            <button type="button" class="btn ghost" onclick="hideForm()">
+              취소
+            </button>
+          </div>
+        </form>
+
+        <div style="margin-top: 22px; display: flex; gap: 10px">
+          <button class="btn sm ghost" onclick="apStop()" style="flex: 1">
+            서버관리 종료
+          </button>
+        </div>
+        <div class="wdinfo" id="wdinfo"></div>
+      </div>
+    </div>
+
+    <!-- 확인 모달 -->
+    <div id="confirm">
+      <div class="dim"></div>
+      <div class="cbox">
+        <h4 id="c-title"></h4>
+        <p id="c-body"></p>
+        <div class="formbtns">
+          <button class="btn ghost" id="c-no">취소</button>
+          <button class="btn" id="c-yes"></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+      "use strict";
+      const $ = (id) => document.getElementById(id);
+      const esc = (s) =>
+        String(s ?? "").replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            }[c])
+        );
+
+      // ---------- API ----------
+      async function post(url, body) {
+        const r = await fetch(url, {
+          method: "POST",
+          headers: { "X-Control": "1", "Content-Type": "application/json" },
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || "오류 " + r.status);
+        return j;
+      }
+      const api = {
+        status: () => fetch("/api/status").then((r) => r.json()),
+        config: () => fetch("/api/config").then((r) => r.json()),
+        act: (id, a) => post(`/api/servers/${encodeURIComponent(id)}/${a}`),
+        saveConfig: (c) => post("/api/config", c),
+        logs: (id, type) =>
+          fetch(
+            `/api/servers/${encodeURIComponent(id)}/logs?type=${type}`
+          ).then((r) => r.json()),
+        wlogs: () => fetch("/api/watchdog/logs").then((r) => r.json()),
+      };
+
+      // ---------- 토스트 / 확인 ----------
+      let toastTimer = null;
+      function toast(msg, isErr) {
+        const t = $("toast");
+        t.textContent = msg;
+        t.className = isErr ? "err show" : "show";
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => t.classList.remove("show"), 3800);
+      }
+      function confirmBox({ title, body, okLabel = "확인", danger = false }) {
+        return new Promise((resolve) => {
+          $("c-title").textContent = title;
+          $("c-body").textContent = body;
+          const yes = $("c-yes");
+          yes.textContent = okLabel;
+          yes.className = danger ? "btn danger" : "btn start";
+          $("confirm").classList.add("open");
+          const done = (v) => {
+            $("confirm").classList.remove("open");
+            yes.onclick = $("c-no").onclick = null;
+            resolve(v);
+          };
+          yes.onclick = () => done(true);
+          $("c-no").onclick = () => done(false);
+        });
+      }
+
+      // ---------- 상태 표현 ----------
+      const PHASE = {
+        unknown: { cls: "x", word: "확인 중…" },
+        stopped: { cls: "r", word: "꺼짐" },
+        starting: { cls: "a", word: "켜는 중…" },
+        building: { cls: "a", word: "준비 중… (빌드)" },
+        running: { cls: "g", word: "켜짐" },
+        stopping: { cls: "a", word: "끄는 중…" },
+        crashed: { cls: "r", word: "응답 없음", blink: true },
+        failed: { cls: "r", word: "켜지지 않음", blink: true },
+      };
+      function fmtUptime(sec) {
+        if (sec == null) return "";
+        const d = Math.floor(sec / 86400),
+          h = Math.floor((sec % 86400) / 3600),
+          m = Math.floor((sec % 3600) / 60);
+        if (d) return `${d}일 ${h}시간`;
+        if (h) return `${h}시간 ${m}분`;
+        if (m) return `${m}분`;
+        return `${sec}초`;
+      }
+
+      // ---------- 카드 렌더링 ----------
+      function buttonsFor(s) {
+        const busy = !!s.opInFlight;
+        const b = [];
+        const btn = (label, cls, on, dis) =>
+          `<button class="btn ${cls}" data-act="${on}" ${
+            dis || busy ? "disabled" : ""
+          }>${label}</button>`;
+        if (s.phase === "running") {
+          b.push(btn("끄기", "stop", "stop"));
+          b.push(btn("재시작", "", "restart"));
+          if (s.hasBuild) b.push(btn("업데이트 적용", "ghost", "update"));
+        } else if (
+          ["stopped", "crashed", "failed", "unknown"].includes(s.phase)
+        ) {
+          b.push(
+            btn(
+              s.phase === "failed" ? "다시 켜기" : "켜기",
+              "start",
+              "start",
+              s.phase === "unknown"
+            )
+          );
+        }
+        b.push(btn("로그", "ghost sm", "logs"));
+        return b.join("");
+      }
+
+      function updateCard(el, s) {
+        const p = PHASE[s.phase] || PHASE.unknown;
+        el.className = "card c-" + p.cls; // 카드 전체 색으로 상태 표현
+        el.querySelector(".lamp").className =
+          "lamp " + p.cls + (p.blink ? " blink" : "");
+        const sw = el.querySelector(".statusword");
+        sw.textContent = p.word;
+        el.querySelector(".onair").classList.toggle(
+          "show",
+          s.phase === "running"
+        );
+        el.querySelector(".chip.port").textContent = "포트 " + s.port;
+        const up = el.querySelector(".chip.up");
+        if (s.phase === "running" && s.uptimeSec != null) {
+          up.style.display = "";
+          up.textContent = "켜진 지 " + fmtUptime(s.uptimeSec);
+        } else {
+          up.style.display = "none";
+        }
+        const err = el.querySelector(".errline");
+        const showErr =
+          (s.phase === "failed" || s.phase === "crashed") && s.lastError;
+        err.classList.toggle("show", !!showErr);
+        if (showErr) err.textContent = s.lastError;
+        // 버튼은 상태가 바뀔 때만 다시 그린다 (클릭 도중 교체 방지)
+        const key = s.phase + "|" + (s.opInFlight || "") + "|" + s.hasBuild;
+        if (el.dataset.key !== key) {
+          el.dataset.key = key;
+          el.querySelector(".btns").innerHTML = buttonsFor(s);
+        }
+      }
+
+      function render(st) {
+        const board = $("board");
+        const ids = new Set(st.servers.map((s) => s.id));
+        for (const el of [...board.children])
+          if (!ids.has(el.dataset.id)) el.remove();
+        for (const s of st.servers) {
+          let el = board.querySelector(`[data-id="${CSS.escape(s.id)}"]`);
+          if (!el) {
+            el = document.createElement("article");
+            el.className = "card c-x";
+            el.dataset.id = s.id;
+            el.innerHTML = `
+        <div class="lampcol"><div class="lamp x"></div><div class="statusword"></div></div>
+        <div class="info">
+          <div class="titleline"><h2>${esc(
+            s.name
+          )}</h2><span class="onair">ON AIR</span></div>
+          <div class="chips"><span class="chip port"></span><span class="chip up" style="display:none"></span></div>
+          <div class="errline"></div>
+          <div class="btns"></div>
+        </div>`;
+            el.title = `${s.command}  (${s.cwd})`;
+            el.addEventListener("click", (e) => {
+              const act = e.target?.dataset?.act;
+              if (act) onAction(s.id, act);
+            });
+            board.appendChild(el);
+          } else {
+            el.querySelector("h2").textContent = s.name;
+            el.title = `${s.command}  (${s.cwd})`;
+          }
+          updateCard(el, s);
+        }
+        $("empty").classList.toggle("show", st.servers.length === 0);
+        // 요약 스탯
+        const upCount = st.servers.filter((s) => s.phase === "running").length;
+        const warnCount = st.servers.filter((s) =>
+          ["crashed", "failed"].includes(s.phase)
+        ).length;
+        $("st-total").textContent = st.servers.length;
+        $("st-up").textContent = upCount;
+        $("st-warn").textContent = warnCount;
+        $("st-warn-tile").classList.toggle("hot", warnCount > 0);
+      }
+
+      // ---------- 동작 ----------
+      let lastStatus = { servers: [] };
+      async function onAction(id, act) {
+        const s = lastStatus.servers.find((x) => x.id === id);
+        if (!s) return;
+        if (act === "logs")
+          return openLog(
+            { kind: "server", id, type: "run" },
+            s.name,
+            s.hasBuild
+          );
+        try {
+          if (act === "stop") {
+            const ok = await confirmBox({
+              title: `'${s.name}' 서버를 끄시겠습니까?`,
+              body: "접속 중인 사용자의 연결이 끊깁니다.\n다시 켜기 전까지 서비스가 중단됩니다.",
+              okLabel: "서버 끄기",
+              danger: true,
+            });
+            if (!ok) return;
+          }
+          if (act === "restart") {
+            const ok = await confirmBox({
+              title: `'${s.name}' 서버를 재시작할까요?`,
+              body: "잠깐(수 초~수십 초) 접속이 끊겼다가 다시 살아납니다.",
+              okLabel: "재시작",
+            });
+            if (!ok) return;
+          }
+          if (act === "update") {
+            const ok = await confirmBox({
+              title: `'${s.name}' 업데이트를 적용할까요?`,
+              body: "최신 코드로 다시 빌드한 뒤 재시작합니다.\n빌드에 수 분이 걸릴 수 있으며, 재시작 순간에만 잠깐 끊깁니다.",
+              okLabel: "빌드 후 재시작",
+            });
+            if (!ok) return;
+          }
+          await api.act(id, act);
+          poll();
+        } catch (e) {
+          toast(e.message, true);
+        }
+      }
+
+      // ---------- 폴링 ----------
+      let failCount = 0;
+      async function poll() {
+        try {
+          const st = await api.status();
+          lastStatus = st;
+          failCount = 0;
+          document.body.classList.remove("offline");
+          $("wddot").className = "wd-dot ok";
+          $("wdtext").textContent = "스테이션 정상";
+          render(st);
+        } catch {
+          if (++failCount >= 2) {
+            document.body.classList.add("offline");
+            $("wddot").className = "wd-dot bad";
+            $("wdtext").textContent = "스테이션 끊김";
+          }
+        }
+      }
+      setInterval(poll, 2500);
+      poll();
+
+      setInterval(() => {
+        $("clock").textContent = new Date().toLocaleTimeString("ko-KR", {
+          hour12: false,
+        });
+      }, 1000);
+
+      // ---------- 로그 시트 ----------
+      let logTarget = null,
+        logTimer = null;
+      function openLog(target, name, hasBuild) {
+        logTarget = target;
+        $("logtitle").textContent = (name || "") + " 로그";
+        const tabs = $("logtabs");
+        if (target.kind === "server") {
+          tabs.innerHTML =
+            `<button class="logtab ${
+              target.type === "run" ? "on" : ""
+            }" data-t="run">실행</button>` +
+            (hasBuild
+              ? `<button class="logtab ${
+                  target.type === "build" ? "on" : ""
+                }" data-t="build">빌드</button>`
+              : "");
+          tabs.onclick = (e) => {
+            const t = e.target?.dataset?.t;
+            if (!t) return;
+            logTarget.type = t;
+            tabs
+              .querySelectorAll(".logtab")
+              .forEach((x) => x.classList.toggle("on", x.dataset.t === t));
+            fetchLog();
+          };
+        } else {
+          tabs.innerHTML = "";
+        }
+        $("logdrawer").classList.add("open");
+        $("logbody").textContent = "불러오는 중…";
+        fetchLog();
+        clearInterval(logTimer);
+        logTimer = setInterval(fetchLog, 2000);
+      }
+      async function fetchLog() {
+        if (!logTarget) return;
+        try {
+          const j =
+            logTarget.kind === "watchdog"
+              ? await api.wlogs()
+              : await api.logs(logTarget.id, logTarget.type);
+          const body = $("logbody");
+          const atBottom =
+            body.scrollHeight - body.scrollTop - body.clientHeight < 60;
+          body.textContent = j.text || "(로그가 비어 있습니다)";
+          if (atBottom) body.scrollTop = body.scrollHeight;
+        } catch {
+          /* 폴링 중 일시 오류 무시 */
+        }
+      }
+      function closeLog() {
+        $("logdrawer").classList.remove("open");
+        clearInterval(logTimer);
+        logTarget = null;
+      }
+
+      // ---------- 설정 ----------
+      let draft = null,
+        editingId = null;
+      async function openSettings() {
+        try {
+          draft = await api.config();
+        } catch {
+          return toast(
+            "설정을 불러오지 못했습니다 — 스테이션 연결을 확인하세요.",
+            true
+          );
+        }
+        renderSettings();
+        $("setwrap").classList.add("open");
+      }
+      function closeSettings() {
+        $("setwrap").classList.remove("open");
+        hideForm();
+      }
+      function renderSettings() {
+        const list = $("slist");
+        list.innerHTML =
+          draft.servers
+            .map(
+              (s) => `
+    <div class="srow">
+      <div class="nm"><b>${esc(s.name)}</b><small>:${s.port} · ${esc(
+                s.command
+              )}</small></div>
+      <button class="btn sm" onclick="showForm('${esc(s.id)}')">수정</button>
+      <button class="btn sm stop" onclick="delServer('${esc(
+        s.id
+      )}')">삭제</button>
+    </div>`
+            )
+            .join("") ||
+          '<div class="srow"><div class="nm">등록된 서버 없음</div></div>';
+        const w = lastStatus.watchdog;
+        $("wdinfo").innerHTML = w
+          ? `스테이션 v${esc(w.version)} · 포트 ${
+              w.controlPort
+            }<br>설정 파일: ${esc(w.configPath)}`
+          : "";
+      }
+      function showForm(id) {
+        editingId = id || null;
+        const s = id ? draft.servers.find((x) => x.id === id) : null;
+        $("formtitle").textContent = s ? `'${s.name}' 수정` : "서버 추가";
+        $("f-name").value = s?.name || "";
+        $("f-cwd").value = s?.cwd || "";
+        $("f-command").value = s?.command || "";
+        $("f-port").value = s?.port || "";
+        $("f-probe").value = s?.probe === "tcp" ? "tcp" : "http";
+        $("f-build").value = s?.buildCommand || "";
+        $("f-marker").value = s?.builtMarker || "";
+        $("sform").classList.add("show");
+        $("f-name").focus();
+      }
+      function hideForm() {
+        $("sform").classList.remove("show");
+        editingId = null;
+      }
+      async function saveForm(e) {
+        e.preventDefault();
+        const prev = editingId
+          ? draft.servers.find((x) => x.id === editingId) || {}
+          : {};
+        const entry = {
+          ...prev,
+          id: editingId || undefined,
+          name: $("f-name").value.trim(),
+          cwd: $("f-cwd").value.trim(),
+          command: $("f-command").value.trim(),
+          port: Number($("f-port").value),
+          probe: $("f-probe").value === "tcp" ? "tcp" : "http",
+          buildCommand: $("f-build").value.trim(),
+          builtMarker: $("f-marker").value.trim(),
+        };
+        const servers = editingId
+          ? draft.servers.map((x) => (x.id === editingId ? entry : x))
+          : [...draft.servers, entry];
+        try {
+          const r = await api.saveConfig({ servers });
+          toast(r.notice || "저장되었습니다.");
+          draft = await api.config();
+          renderSettings();
+          hideForm();
+          poll();
+        } catch (err) {
+          toast(err.message, true);
+        }
+        return false;
+      }
+      async function apStop() {
+        const ok = await confirmBox({
+          title: "서버 관리를 종료할까요?",
+          body: "관리 화면과 상태 감시가 멈춥니다.\n이미 켜 둔 서버는 계속 돌아갑니다.\n다시 시작하려면 서버 컴퓨터에서 '스테이션 열기.cmd'를 실행하세요.",
+          okLabel: "서버관리 종료",
+          danger: true,
+        });
+        if (!ok) return;
+        try {
+          await post("/api/watchdog/stop");
+          closeSettings();
+          toast("서버 관리를 종료했습니다. 다시 시작: '스테이션 열기.cmd'");
+        } catch (e) {
+          toast(e.message, true);
+        }
+      }
+      async function delServer(id) {
+        const s = draft.servers.find((x) => x.id === id);
+        if (!s) return;
+        const ok = await confirmBox({
+          title: `'${s.name}' 서버를 목록에서 삭제할까요?`,
+          body: "설정에서만 제거되며, 폴더나 코드는 삭제되지 않습니다.\n(켜져 있는 서버는 먼저 꺼야 삭제됩니다)",
+          okLabel: "삭제",
+          danger: true,
+        });
+        if (!ok) return;
+        try {
+          await api.saveConfig({
+            servers: draft.servers.filter((x) => x.id !== id),
+          });
+          toast("삭제되었습니다.");
+          draft = await api.config();
+          renderSettings();
+          poll();
+        } catch (err) {
+          toast(err.message, true);
+        }
+      }
+    </script>
+  </body>
+</html>

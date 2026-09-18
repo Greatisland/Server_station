@@ -1,0 +1,59 @@
+{
+  "controlPort": 3738,
+  "servers": [
+    {
+      "id": "migmanager",
+      "name": "MigManager",
+      "cwd": "D:\\dev\\MigManager",
+      "command": "npm run start",
+      "port": 3737,
+      "probe": "http",
+      "buildCommand": "npm run build",
+      "builtMarker": ".next/BUILD_ID"
+    },
+    {
+      "id": "migcontrol",
+      "name": "MigControl",
+      "cwd": "D:\\dev\\Mig-contols_v1.73.0_20260715_171808",
+      "command": "npm run dev",
+      "port": 5500,
+      "probe": "http"
+    },
+    {
+      "id": "bpoboard",
+      "name": "BPOboard:front_dev",
+      "cwd": "D:\\dev\\BPOboard",
+      "command": "npm run dev -w @bpo/web -- -p 4000",
+      "port": 3997,
+      "probe": "http",
+      "builtMarker": ".next/BUILD_ID"
+    },
+    {
+      "id": "bpoboard-db",
+      "name": "BPOboard:db",
+      "cwd": "D:\\dev\\BPOboard",
+      "command": "npm run mariadb:dev -w @bpo/db start",
+      "port": 3307,
+      "probe": "tcp"
+    },
+    {
+      "id": "bpoboard-worker",
+      "name": "BPOboard:worker",
+      "cwd": "D:\\dev\\BPOboard",
+      "command": "npm run start -w @bpo/worker",
+      "port": 8788,
+      "probe": "http",
+      "dependsOn": "bpoboard-db"
+    },
+    {
+      "id": "bpoboard-front",
+      "name": "BPOboard:front",
+      "cwd": "D:\\dev\\BPOboard",
+      "command": "npm run start -w @bpo/web -- -p 5000",
+      "port": 5000,
+      "probe": "http",
+      "buildCommand": "npm run build",
+      "builtMarker": "apps/web/.next/BUILD_ID"
+    }
+  ]
+}
