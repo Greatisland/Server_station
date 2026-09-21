@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MIG Station — 서버 상태</title>
+    <title>Server Station — 서버 상태</title>
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📡</text></svg>"
@@ -834,7 +834,7 @@
       <header>
         <div>
           <span class="eyebrow">SIIC DASHBOARD OPS</span>
-          <h1>MIG STATION<span class="star">✳</span></h1>
+          <h1>SERVER STATION<span class="star">✳</span></h1>
           <p class="tagline">아래에서 서버 상태를 관리해주세요.</p>
         </div>
         <div class="hud">
@@ -897,6 +897,16 @@
           서버를 추가/수정합니다. 실행 중인 서버의 명령어·포트·폴더를 바꾸려면
           먼저 서버를 끄세요.
         </div>
+        <label class="chk" style="padding: 14px 16px; background: #fff; border: var(--bd2); border-radius: 14px; box-shadow: 4px 4px 0 var(--ink)">
+          <input type="checkbox" id="f-autorestart" onchange="saveAutoRestart()" />
+          <span
+            >죽으면 자동으로 다시 켜기<br /><small
+              style="font-weight: 600; color: #6d6250"
+              >부팅 때 꺼진 서버를 켜지는 않습니다. 켜져 있던 서버가 응답을
+              잃으면 다시 켭니다. 15분에 3번 실패하면 멈춥니다.</small
+            ></span
+          >
+        </label>
         <div id="slist"></div>
         <button class="btn" style="width: 100%" onclick="showForm()">
           ＋ 서버 추가
@@ -1261,7 +1271,9 @@
           failCount = 0;
           document.body.classList.remove("offline");
           $("wddot").className = "wd-dot ok";
-          $("wdtext").textContent = "스테이션 정상";
+          $("wdtext").textContent = st.watchdog?.autoRestart
+            ? "스테이션 정상 · 자동 재시작"
+            : "스테이션 정상";
           render(st);
         } catch {
           if (++failCount >= 2) {
@@ -1356,7 +1368,32 @@
         $("setwrap").classList.remove("open");
         hideForm();
       }
+      function configBody(servers) {
+        return {
+          servers: servers || draft.servers,
+          autoRestart: !!draft.autoRestart,
+          controlPort: draft.controlPort,
+        };
+      }
+      async function saveAutoRestart() {
+        if (!draft) return;
+        draft.autoRestart = $("f-autorestart").checked;
+        try {
+          await api.saveConfig(configBody());
+          toast(
+            draft.autoRestart
+              ? "죽으면 자동으로 다시 켭니다."
+              : "자동 재시작을 껐습니다. 죽으면 수동으로 켜야 합니다."
+          );
+          poll();
+        } catch (err) {
+          $("f-autorestart").checked = !draft.autoRestart;
+          draft.autoRestart = $("f-autorestart").checked;
+          toast(err.message, true);
+        }
+      }
       function renderSettings() {
+        $("f-autorestart").checked = !!draft.autoRestart;
         const list = $("slist");
         list.innerHTML =
           draft.servers
@@ -1378,7 +1415,9 @@
         $("wdinfo").innerHTML = w
           ? `스테이션 v${esc(w.version)} · 포트 ${
               w.controlPort
-            }<br>설정 파일: ${esc(w.configPath)}`
+            } · 자동 재시작 ${w.autoRestart ? "켬" : "끔"}<br>설정 파일: ${esc(
+              w.configPath
+            )}`
           : "";
       }
       function showForm(id) {
@@ -1419,7 +1458,7 @@
           ? draft.servers.map((x) => (x.id === editingId ? entry : x))
           : [...draft.servers, entry];
         try {
-          const r = await api.saveConfig({ servers });
+          const r = await api.saveConfig(configBody(servers));
           toast(r.notice || "저장되었습니다.");
           draft = await api.config();
           renderSettings();
@@ -1457,9 +1496,9 @@
         });
         if (!ok) return;
         try {
-          await api.saveConfig({
-            servers: draft.servers.filter((x) => x.id !== id),
-          });
+          await api.saveConfig(
+            configBody(draft.servers.filter((x) => x.id !== id))
+          );
           toast("삭제되었습니다.");
           draft = await api.config();
           renderSettings();

@@ -131,7 +131,7 @@ spawn(`start "" "http://localhost:${port}"`, { shell: true, detached: true, stdi
 
 console.log(`
 ========================================================
- MIG Station 준비 완료!
+ Server Station 준비 완료!
  - 상태 페이지:  http://localhost:${port}  (바탕화면 '서버 상태' 아이콘)
  - '스테이션 열기.cmd'는 언제 다시 실행해도 안전합니다.
    (등록 갱신 + 꺼져 있으면 켜기 + 상태 페이지 열기)

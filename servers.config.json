@@ -1,5 +1,6 @@
 {
   "controlPort": 3738,
+  "autoRestart": true,
   "servers": [
     {
       "id": "migmanager",

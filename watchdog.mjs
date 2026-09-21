@@ -3,7 +3,8 @@
 // - servers.config.json 에 등록된 서버들을 감시/제어한다
 // - 3738 포트(기본)로 관제 UI(control.html)를 서빙한다
 // - 서버 프로세스는 detached 로 띄우므로 스테이션이 닫혀도 서버는 유지된다
-// - 서버는 자동으로 켜지지 않는다 — 관제 페이지에서 수동으로 [켜기] 해야 한다
+// - 부팅 때 서버를 자동으로 켜지 않는다 — 관제 페이지에서 수동으로 [켜기] 해야 한다
+// - 켜져 있던 서버가 죽으면 autoRestart 설정이 켜진 경우에만 다시 켠다
 // 실행: node watchdog.mjs   (설치 후에는 로그인 시 자동 실행됨)
 // ============================================================
 import http from 'node:http';
@@ -13,7 +14,7 @@ import path from 'node:path';
 import { spawn, execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const VERSION = '1.3.1';
+const VERSION = '1.4.0';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(HERE, 'servers.config.json');
 const CONTROL_HTML = path.join(HERE, 'control.html');
@@ -26,9 +27,14 @@ const LOG_ROTATE_BYTES = 5 * 1024 * 1024;
 const MONITOR_INTERVAL_MS = 5000;
 const START_TIMEOUT_MS = 90_000;
 const STOP_TIMEOUT_MS = 12_000;
+/** 잘못된 설정으로 무한 재시작되는 것을 막는다 */
+const AUTO_RESTART_WINDOW_MS = 15 * 60 * 1000;
+const AUTO_RESTART_MAX = 3;
+const AUTO_RESTART_STABLE_MS = 10 * 60 * 1000;
 
 const DEFAULT_CONFIG = {
   controlPort: 3738,
+  autoRestart: false,
   servers: [
     {
       id: 'migmanager',
@@ -99,6 +105,7 @@ function loadConfig() {
   }
   cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
   if (!Number.isInteger(cfg.controlPort)) cfg.controlPort = 3738;
+  if (typeof cfg.autoRestart !== 'boolean') cfg.autoRestart = false;
   if (!Array.isArray(cfg.servers)) cfg.servers = [];
 }
 
@@ -140,6 +147,7 @@ function getRt(id) {
     runtimes.set(id, {
       phase: 'unknown', opInFlight: null,
       startedAt: null, lastError: null, fails: 0, pid: null,
+      autoRestarts: [],
     });
   }
   return runtimes.get(id);
@@ -333,9 +341,13 @@ async function runOp(s, name, fn) {
 }
 
 const actions = {
-  start: (s) => runOp(s, 'start', (rt) => doStart(s, rt)),
+  start: (s) => runOp(s, 'start', (rt) => {
+    rt.autoRestarts = [];
+    return doStart(s, rt);
+  }),
   stop: (s) => runOp(s, 'stop', (rt) => doStop(s, rt, { manual: true })),
   restart: (s) => runOp(s, 'restart', async (rt) => {
+    rt.autoRestarts = [];
     if (await probe(s, 1500)) await doStop(s, rt, { manual: false });
     await doStart(s, rt);
   }),
@@ -361,18 +373,48 @@ async function monitorTick() {
         rt.lastError = null;
       }
       rt.fails = 0;
+      if (rt.startedAt && Date.now() - rt.startedAt >= AUTO_RESTART_STABLE_MS) {
+        rt.autoRestarts = [];
+      }
       continue;
     }
     rt.fails++;
     if (rt.fails < 2) continue; // 일시적 무응답 1회는 무시
-    // 자동 복구는 하지 않는다 — 상태만 갱신하고 사용자가 수동으로 켜도록 둔다
     if (rt.phase === 'running') {
       rt.phase = 'crashed'; rt.startedAt = null;
-      wlog(`[${s.name}] 응답 중단 감지 (포트 ${s.port}) — 수동으로 켜세요`);
+      if (!cfg.autoRestart) wlog(`[${s.name}] 응답 중단 감지 (포트 ${s.port}) — 수동으로 켜세요`);
+      maybeAutoRestart(s, rt);
+    } else if ((rt.phase === 'crashed' || rt.phase === 'failed') && cfg.autoRestart) {
+      maybeAutoRestart(s, rt);
     } else if (rt.phase === 'unknown') {
       rt.phase = 'stopped';
     }
   }
+}
+
+function pruneAutoRestarts(rt) {
+  const now = Date.now();
+  rt.autoRestarts = (rt.autoRestarts || []).filter((t) => now - t < AUTO_RESTART_WINDOW_MS);
+  return rt.autoRestarts;
+}
+
+/** 수동으로 끈 서버(stopped)는 건드리지 않는다. 켜져 있던 서버가 죽은 경우만. */
+function maybeAutoRestart(s, rt) {
+  if (!cfg.autoRestart || rt.opInFlight) return;
+  const recent = pruneAutoRestarts(rt);
+  if (recent.length >= AUTO_RESTART_MAX) {
+    if (rt.lastError && String(rt.lastError).includes('자동 재시작')) return;
+    rt.lastError = `자동 재시작을 ${AUTO_RESTART_WINDOW_MS / 60000}분 안에 ${AUTO_RESTART_MAX}번 시도했지만 다시 죽었습니다. 로그를 확인하세요.`;
+    wlog(`[${s.name}] 응답 중단 감지 (포트 ${s.port}) — 자동 재시작 한도 초과`);
+    return;
+  }
+  rt.autoRestarts = [...recent, Date.now()];
+  wlog(`[${s.name}] 응답 중단 감지 (포트 ${s.port}) — 자동 재시작 (${rt.autoRestarts.length}/${AUTO_RESTART_MAX})`);
+  runOp(s, 'auto-restart', async (state) => {
+    const pids = await findPidsOnPort(s.port);
+    if (pids.length) await doStop(s, state, { manual: false });
+    await doStart(s, state);
+  });
 }
 
 async function initialSweep() {
@@ -468,7 +510,11 @@ function readBody(req, limit = 200 * 1024) {
 
 function statusPayload() {
   return {
-    watchdog: { version: VERSION, pid: process.pid, startedAt: bootAt, controlPort: cfg.controlPort, configPath: CONFIG_PATH },
+    watchdog: {
+      version: VERSION, pid: process.pid, startedAt: bootAt,
+      controlPort: cfg.controlPort, configPath: CONFIG_PATH,
+      autoRestart: !!cfg.autoRestart,
+    },
     servers: cfg.servers.map((s) => {
       const rt = getRt(s.id);
       return {
@@ -495,7 +541,9 @@ async function handleRequest(req, res) {
     }
     if (u.pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
     if (u.pathname === '/api/status') return json(res, 200, statusPayload());
-    if (u.pathname === '/api/config') return json(res, 200, { controlPort: cfg.controlPort, servers: cfg.servers });
+    if (u.pathname === '/api/config') return json(res, 200, {
+      controlPort: cfg.controlPort, autoRestart: !!cfg.autoRestart, servers: cfg.servers,
+    });
     if (u.pathname === '/api/watchdog/logs') return json(res, 200, { text: tailFile(WATCHDOG_LOG) });
     if (parts[0] === 'api' && parts[1] === 'servers' && parts[3] === 'logs') {
       const s = cfg.servers.find((x) => x.id === parts[2]);
@@ -537,6 +585,10 @@ async function handleRequest(req, res) {
         const controlPort = Number(body.controlPort);
         const portChanged = Number.isInteger(controlPort) && controlPort !== cfg.controlPort;
         cfg.servers = servers;
+        if (typeof body.autoRestart === 'boolean' && body.autoRestart !== cfg.autoRestart) {
+          cfg.autoRestart = body.autoRestart;
+          wlog(`자동 재시작 ${cfg.autoRestart ? '켬' : '끔'}`);
+        }
         if (portChanged && controlPort >= 1024 && controlPort <= 65535) cfg.controlPort = controlPort;
         for (const id of [...runtimes.keys()]) {
           if (!servers.some((s) => s.id === id)) runtimes.delete(id);
